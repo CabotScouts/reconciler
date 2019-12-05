@@ -19,8 +19,8 @@ class Reconciler :
     _limit    = None # How are we limiting getting results from GC
     _ldate    = None # Date to limit by
 
-    _payouts  = []   # Returned list of payout items
-    _payments = {}   # Returned list of payments
+    _payouts  = {}   # Returned list of payout items
+    _payments = []   # Returned list of payments
     _matched  = []   # Payouts matched to payments
 
     _filename = None # File to export payments to
@@ -84,6 +84,7 @@ class Reconciler :
         self._sheet.append([
             "Payout Date",
             "Reference",
+            "Payment Date",
             "Amount",
             "Unit",
             "Payment Schedule",
@@ -98,7 +99,6 @@ class Reconciler :
 
         params = {
             "status"          : "paid",
-            "created_at[gte]" : self._ldate,
             "limit"           : 500
         }
 
@@ -114,12 +114,11 @@ class Reconciler :
 
             for i in items :
                 if i.type == "payment_paid_out" :
-                    self._payouts.append({
-                        "payout_id"        : p.id,
+                    self._payouts[p.id] = {
                         "payout_date"      : p.arrival_date,
                         "payout_reference" : p.reference,
                         "payment_id"       : i.links.payment
-                    })
+                    }
 
         if payouts.after :
             self._fetchPayouts(payouts.after)
@@ -130,6 +129,7 @@ class Reconciler :
 
         params = {
             "status" : "paid_out",
+            "created_at[gte]" : self._ldate,
             "limit"  : 500
         }
 
@@ -139,26 +139,29 @@ class Reconciler :
         payments = self._client.payments.list(params = params)
 
         for p in payments.records :
-            self._payments[p.id] = {
+            self._payments.append({
+                "payout_id"            : p.links.payout,
                 "payment_id"           : p.id,
+                "payment_date"         : p.charge_date,
                 "payment_amount_gross" : round((p.amount / 100), 2),
                 "payment_amount_net"   : self._calculateNet(p.amount),
                 "payment_description"  : self._parseDescription(p.description)
-            }
+            })
 
         if payments.after :
             self._fetchPayments(payments.after)
 
     def _matchPayoutItemsWithPayments(self) :
-        for p in self._payouts :
+        for p in self._payments :
             try :
-                payment = self._payments[p["payment_id"]]
-                r = { **payment, **p }
+                payout = self._payouts[p["payout_id"]]
+                r = { **p, **payout } # 572
 
                 self._matched.append(r)
                 self._sheet.append([
                     r["payout_date"],
                     r["payout_reference"],
+                    r["payment_date"],
                     r["payment_amount_net"],
                     r["payment_description"]["unit"],
                     r["payment_description"]["schedule"],
