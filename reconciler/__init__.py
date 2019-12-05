@@ -170,7 +170,7 @@ class Reconciler :
                 exit("Missing Payment!") # This shouldn't happen!
 
     def _parseDescription(self, description) :
-        # Future - rename schedules to match "([\w ]+) - ([\w ?]+) \(([\w ]+)\)"
+        # Future - rename schedules to match "([\w]+) - ([\w\W]+) \(([\w\W]+)\)"
         pattern = re.compile("([\w]+){1} ([\w\W]+) \(([\w\W]+)\)")
         match = pattern.findall(description)
         match = match[0] if (len(match) > 0) else ["", "", ""]
