@@ -3,6 +3,8 @@ Util for reconciling GoCardless payments and payouts
 
 Will match a *payout* into your bank account, with the *payments* from parents that it consists of (so these can then be properly reconciled)
 
+Currently parses payment descriptions according to how we format our Units, eventually I'll pull this out of the module so you can specify your own matching/export columns.
+
 ## Required packages
 * **gocardless_pro** - GoCardless API
 * **openpyxl** - for writing xlsx files
@@ -20,6 +22,6 @@ Required parameters in bold
   * week
   * month
   * year
-  * finyear
-  * all
+  * finyear (all payments in current financial year)
+  * all (if you've been using GoCardless for a while this might break?)
 * *file* - (string) what to call the exported xlsx file (defaults to 'export.xlsx')
