@@ -31,5 +31,14 @@ class Mail :
 		pass
 
 	def send(self) :
+		try :
+			assert(isinstance(self.subject, str))
+			assert(isinstance(self.sendTo, list))
+			assert(isinstance(self.sendFrom, str))
+			assert(isinstance(self.plainText, str))
+
+		except :
+			raise ValueError("An email field is either blank or the wrong type")
+
 		self._send()
 		return self
