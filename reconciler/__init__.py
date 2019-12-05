@@ -11,10 +11,10 @@ class Reconciler :
 	_mail     = None # Parameters used for sending result by mail
 	_mailer   = None # Mail driver class
 	_client   = None # GoCardless client
+	
 	_limit    = None # How are we limiting getting results from GC
 	_ldate    = None # Date to limit by
-	_outID    = None # Last payout we fetched
-	_mentID   = None # Last payment we fetched
+
 	_payouts  = []   # Returned list of payouts
 	_payments = {}   # Returned list of payments
 	_matched  = []   # Payouts matched to payments
