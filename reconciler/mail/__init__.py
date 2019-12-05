@@ -1,44 +1,44 @@
 drivers = {
-	"smtp"    : ("reconciler.mail.smtp", "SMTP"),
-	"mailgun" : ("reconciler.mail", "mailgun.Mailgun")
+    "smtp"    : ("reconciler.mail.smtp", "SMTP"),
+    "mailgun" : ("reconciler.mail", "mailgun.Mailgun")
 }
 
 class Mail :
 
-	subject     = None
-	sendTo      = None
-	sendFrom    = None
-	attachments = []
-	plainText   = None
+    subject     = None
+    sendTo      = None
+    sendFrom    = None
+    attachments = []
+    plainText   = None
 
-	def subject(self, subject) :
-		self.subject = subject
-		return self
+    def subject(self, subject) :
+        self.subject = subject
+        return self
 
-	def to(self, to) :
-		self.sendTo = to
-		return self
+    def to(self, to) :
+        self.sendTo = to
+        return self
 
-	def sender(self, sender) :
-		self.sendFrom = sender
-		return self
+    def sender(self, sender) :
+        self.sendFrom = sender
+        return self
 
-	def message(self, message) :
-		self.plainText = message
-		return self
+    def message(self, message) :
+        self.plainText = message
+        return self
 
-	def attach(self, pathToFile) :
-		pass
+    def attach(self, pathToFile) :
+        pass
 
-	def send(self) :
-		try :
-			assert(isinstance(self.subject, str))
-			assert(isinstance(self.sendTo, list))
-			assert(isinstance(self.sendFrom, str))
-			assert(isinstance(self.plainText, str))
+    def send(self) :
+        try :
+            assert(isinstance(self.subject, str))
+            assert(isinstance(self.sendTo, list))
+            assert(isinstance(self.sendFrom, str))
+            assert(isinstance(self.plainText, str))
 
-		except :
-			raise ValueError("An email field is either blank or the wrong type")
+        except :
+            raise ValueError("An email field is either blank or the wrong type")
 
-		self._send()
-		return self
+        self._send()
+        return self
