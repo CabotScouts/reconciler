@@ -1,6 +1,5 @@
 import datetime
 import importlib
-import re
 import gocardless_pro
 from openpyxl import Workbook
 from reconciler.mail import drivers
@@ -10,26 +9,25 @@ from reconciler.mail.mailgun import Mailgun
 
 class Reconciler :
 
-    _mail     = None # Parameters used for sending result by mail
-    _mailer   = None # Mail driver class
-    _client   = None # GoCardless client
-    _book     = None # Output xlsx wookbook
-    _sheet    = None # Output xlsx worksheet
+    _mail      = None # Parameters used for sending result by mail
+    _mailer    = None # Mail driver class
+    _client    = None # GoCardless client
+    _book      = None # Output xlsx wookbook
+    _sheet     = None # Output xlsx worksheet
 
-    _limit    = None # How are we limiting getting results from GC
-    _ldate    = None # Date to limit by
+    _limit     = None # How are we limiting getting results from GC
+    _ldate     = None # Date to limit by
 
-    _payouts  = {}   # Returned list of payout items
-    _payments = []   # Returned list of payments
-    _matched  = []   # Payouts matched to payments
+    _payouts   = {}   # Returned list of payout items
+    _payments  = []   # Returned list of payments
+    _matched   = []   # Payouts matched to payments
 
-    _filename = None # File to export payments to
-    _exported = None # Exported xlsx file of matches
+    _filename  = None # File to export payments to
+    _exported  = None # Exported xlsx file of matches
 
-    # Future - make sheet columns/headers customisable
-    # _columns  = None # Keys for custom xlsx columns
-    # _headers  = None # Custom xlsx headers
-    # _parser   = None # Custom payment description parser
+    _columns   = None # Keys for custom xlsx columns
+    _headings  = None # Custom xlsx headings
+    _parser    = None # Custom payment description parser
 
     def __init__(self, **args) :
         if ("mail" in args) :
@@ -48,6 +46,27 @@ class Reconciler :
 
         else :
             raise ValueError("GoCardless token missing")
+
+        if ("columns" in args) :
+            self._columns = args["columns"]
+            self._headings = args["headers"] if ("headers" in args) else args["columns"]
+
+        else :
+            self._columns = [
+                "payout_date",
+                "payout_reference",
+                "payment_amount_net",
+                "payment_description"
+            ]
+
+            self._headings = [
+                "Payout Date",
+                "Payout Reference",
+                "Amount",
+                "Description"
+            ]
+
+        self._parser = args["parser"] if ("parser" in args) else None
 
         self._filename = args["file"] if ("file" in args) else "export.xlsx"
         self._book = Workbook(write_only = True)
@@ -81,16 +100,7 @@ class Reconciler :
         self._ldate = l.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
     def _headerRow(self) :
-        self._sheet.append([
-            "Payout Date",
-            "Reference",
-            "Payment Date",
-            "Amount",
-            "Unit",
-            "Payment Schedule",
-            "Event",
-            "Raw Description"
-        ])
+        self._sheet.append(self._headings)
 
     def _fetchPayoutItems(self, after = False) :
         # A 'payout' is a transfer of money from GoCardless to the account
@@ -99,6 +109,7 @@ class Reconciler :
 
         params = {
             "status"          : "paid",
+            "created_at[gte]" : self._ldate,
             "limit"           : 500
         }
 
@@ -139,14 +150,15 @@ class Reconciler :
         payments = self._client.payments.list(params = params)
 
         for p in payments.records :
-            self._payments.append({
+            payout = {
                 "payout_id"            : p.links.payout,
                 "payment_id"           : p.id,
                 "payment_date"         : p.charge_date,
                 "payment_amount_gross" : round((p.amount / 100), 2),
-                "payment_amount_net"   : self._calculateNet(p.amount),
-                "payment_description"  : self._parseDescription(p.description)
-            })
+                "payment_amount_net"   : self._calculateNet(p.amount)
+            }
+            description = self._parseDescription(p.description)
+            self._payments.append({ **payout, **description })
 
         if payments.after :
             self._fetchPayments(payments.after)
@@ -155,35 +167,19 @@ class Reconciler :
         for p in self._payments :
             try :
                 payout = self._payouts[p["payout_id"]]
-                r = { **p, **payout } # 572
+                r = { **p, **payout }
 
                 self._matched.append(r)
-                self._sheet.append([
-                    r["payout_date"],
-                    r["payout_reference"],
-                    r["payment_date"],
-                    r["payment_amount_net"],
-                    r["payment_description"]["unit"],
-                    r["payment_description"]["schedule"],
-                    r["payment_description"]["event"],
-                    r["payment_description"]["raw"]
-                ])
+                self._sheet.append([ r[k] for k in self._columns ])
 
             except (KeyError) :
-                exit("Missing Payment!") # This shouldn't happen!
+                raise Exception("Missing Payment!") # This shouldn't happen!
 
     def _parseDescription(self, description) :
-        # Future - rename schedules to match "([\w]+) - ([\w\W]+) \(([\w\W]+)\)"
-        pattern = re.compile("([\w]+){1} ([\w\W]+) \(([\w\W]+)\)")
-        match = pattern.findall(description)
-        match = match[0] if (len(match) > 0) else ["", "", ""]
-
-        return {
-            "raw"      : description,
-            "unit"     : match[0],
-            "schedule" : match[1],
-            "event"    : match[2]
-        }
+        if self._parser :
+            return self._parser(description)
+        else:
+            return { "payment_description" : description }
 
     def _calculateNet(self, amount) :
         # Fees are 2.95% if over £15, or (1.95% + 15p) if under
