@@ -1,6 +1,8 @@
 import datetime
 import importlib
+import re
 import gocardless_pro
+from openpyxl import Workbook
 from reconciler.mail import drivers
 
 # TODO: fix correct driver being imported
@@ -11,29 +13,49 @@ class Reconciler :
 	_mail     = None # Parameters used for sending result by mail
 	_mailer   = None # Mail driver class
 	_client   = None # GoCardless client
-	
+	_book     = None # Output xlsx wookbook
+	_sheet    = None # Output xlsx worksheet
+
 	_limit    = None # How are we limiting getting results from GC
 	_ldate    = None # Date to limit by
 
-	_payouts  = []   # Returned list of payouts
+	_payouts  = []   # Returned list of payout items
 	_payments = {}   # Returned list of payments
 	_matched  = []   # Payouts matched to payments
+
+	_filename = None # File to export payments to
 	_exported = None # Exported xlsx file of matches
 
-	def __init__(self, gc, params, limit = "month") :
-		self._mail = params
+	# Future - make sheet columns/headers customisable
+	# _columns  = None # Keys for custom xlsx columns
+	# _headers  = None # Custom xlsx headers
+	# _parser   = None # Custom payment description parser
 
-		driver = drivers[params["driver"]]
-		# mailer = importlib.import_module(driver[1] , package=driver[0])
-		# self._mailer = mailer(params)
-		self._mailer = Mailgun(params)
+	def __init__(self, **args) :
+		if ("mail" in args) :
+			self._mail = args["mail"]
 
-		self._client = gocardless_pro.Client(
-			access_token = gc["token"],
-			environment = gc["environment"]
-		)
+			driver = drivers[self._mail["driver"]]
+			# mailer = importlib.import_module(driver[1] , package=driver[0])
+			# self._mailer = mailer(params)
+			self._mailer = Mailgun(self._mail)
 
-		self._limit = limit
+		if ("gc" in args) :
+			self._client = gocardless_pro.Client(
+				access_token = args["gc"]["token"],
+				environment = args["gc"]["environment"] if ("environment" in args["gc"]) else "live"
+			)
+
+		else :
+			raise ValueError("GoCardless token missing")
+
+
+		self._filename = args["file"] if ("file" in args) else "export.xlsx"
+		self._book = Workbook(write_only = True)
+		self._sheet = self._book.create_sheet()
+		self._headerRow()
+
+		self._limit = args["limit"] if ("limit" in args) else "month"
 		self._calculateDateLimit()
 
 	def _calculateDateLimit(self) :
@@ -53,40 +75,27 @@ class Reconciler :
 			l = datetime.datetime(year, 4, 1, 0, 0, 0)
 
 		elif self._limit == "all" :
-			# So we don't have to check anywhere else
 			l = datetime.datetime(1970, 1, 1, 0, 0, 0)
 		else :
 			raise ValueError("Incorrect limit specified")
 
 		self._ldate = l.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
-	def _fetchPayments(self, after = False) :
-		# A 'payment' is the transfer of money from a customer to GoCardless
+	def _headerRow(self) :
+		self._sheet.append([
+			"Payout Date",
+			"Reference",
+			"Amount",
+			"Unit",
+			"Payment Schedule",
+			"Event",
+			"Raw Description"
+		])
 
-		params = {
-			"status" : "paid_out",
-			"limit"  : 500
-		}
-
-		if after :
-			params["after"] = after
-
-		payments = self._client.payments.list(params = params)
-
-		for p in payments.records :
-			self._payments[p.id] = {
-				"payment_id"           : p.id,
-				"payment_amount_gross" : round((p.amount / 100), 2),
-				"payment_amount_net"   : self._calculateNet(p.amount),
-				"payment_description"  : p.description
-			}
-
-		if payments.after :
-			self._fetchPayments(payments.after)
-
-	def _fetchPayouts(self, after = False) :
+	def _fetchPayoutItems(self, after = False) :
 		# A 'payout' is a transfer of money from GoCardless to the account
-		# Payouts consist of many payments (hence the need to reconcile these)
+		# Payouts consist of many payout items, some of these being the individual
+		# payments that make up the payout
 
 		params = {
 			"status"          : "paid",
@@ -116,16 +125,63 @@ class Reconciler :
 		if payouts.after :
 			self._fetchPayouts(payouts.after)
 
+	def _fetchPayments(self, after = False) :
+		# A 'payment' is the transfer of money from a customer to GoCardless
+		# payments are bundled together along with GC and app fees to make a payout
+
+		params = {
+			"status" : "paid_out",
+			"limit"  : 500
+		}
+
+		if after :
+			params["after"] = after
+
+		payments = self._client.payments.list(params = params)
+
+		for p in payments.records :
+			self._payments[p.id] = {
+				"payment_id"           : p.id,
+				"payment_amount_gross" : round((p.amount / 100), 2),
+				"payment_amount_net"   : self._calculateNet(p.amount),
+				"payment_description"  : self._parseDescription(p.description)
+			}
+
+		if payments.after :
+			self._fetchPayments(payments.after)
+
 	def _matchPayoutItemsWithPayments(self) :
 		for p in self._payouts :
 			try :
 				payment = self._payments[p["payment_id"]]
-				self._matched.append({ **payment, **p })
+				r = { **payment, **p }
+
+				self._matched.append(r)
+				self._sheet.append([
+					r["payout_date"],
+					r["payout_reference"],
+					r["payment_amount_net"],
+					r["payment_description"]["unit"],
+					r["payment_description"]["schedule"],
+					r["payment_description"]["event"],
+					r["payment_description"]["raw"]
+				])
+
 			except (KeyError) :
 				exit("Missing Payment!") # This shouldn't happen!
 
 	def _parseDescription(self, description) :
-		pass
+		# Future - rename schedules to match "([\w ]+) - ([\w ?]+) \(([\w ]+)\)"
+		pattern = re.compile("([\w]+){1} ([\w\W]+) \(([\w\W]+)\)")
+		match = pattern.findall(description)
+		match = match[0] if (len(match) > 0) else ["", "", ""]
+
+		return {
+			"raw"      : description,
+			"unit"     : match[0],
+			"schedule" : match[1],
+			"event"    : match[2]
+		}
 
 	def _calculateNet(self, amount) :
 		# Fees are 2.95% if over £15, or (1.95% + 15p) if under
@@ -138,14 +194,14 @@ class Reconciler :
 		return round((amount - fee), 2)
 
 	def reconcile(self) :
-		self._fetchPayouts()
+		self._fetchPayoutItems()
 		self._fetchPayments()
 		self._matchPayoutItemsWithPayments()
 
 	def export(self) :
-		pass
+		self._book.save(self._filename)
 
-	def send(self) :
+	def send(self, keepExported = False) :
 		if(not self.exported) :
 			self.export()
 
@@ -155,6 +211,9 @@ class Reconciler :
 		# self._mailer.attach(self.exported)
 		self._mailer.message("Test of the reconciler")
 		self._mailer.send()
+
+		if not keepExported :
+			self._deleteExported()
 
 	def file(self) :
 		return self.exported["path"]
