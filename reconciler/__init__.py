@@ -1,4 +1,5 @@
 import os
+import re
 import datetime
 import importlib
 import gocardless_pro
@@ -42,7 +43,7 @@ class Reconciler :
             )
 
         else :
-            raise ValueError("GoCardless token missing")
+            raise ValueError("GoCardless token missing - check parameters")
 
         if ("columns" in args) :
             self._columns = args["columns"]
@@ -53,14 +54,16 @@ class Reconciler :
                 "payout_date",
                 "payout_reference",
                 "payment_amount_net",
-                "payment_description"
+                "payment_description_schedule",
+                "payment_description_event"
             ]
 
             self._headings = [
                 "Payout Date",
                 "Payout Reference",
                 "Amount",
-                "Description"
+                "Schedule",
+                "Event"
             ]
 
         self._parser = args["parser"] if ("parser" in args) else None
@@ -152,10 +155,11 @@ class Reconciler :
                 "payment_id"           : p.id,
                 "payment_date"         : p.charge_date,
                 "payment_amount_gross" : round((p.amount / 100), 2),
-                "payment_amount_net"   : self._calculateNet(p.amount)
+                "payment_amount_net"   : self._calculateNet(p.amount),
+                "payment_description"  : p.description
             }
-            description = self._parseDescription(p.description)
-            self._payments.append({ **payout, **description })
+            parsed = self._parseDescription(p.description)
+            self._payments.append({ **payout, **parsed })
 
         if payments.after :
             self._fetchPayments(payments.after)
@@ -176,7 +180,14 @@ class Reconciler :
         if self._parser :
             return self._parser(description)
         else:
-            return { "payment_description" : description }
+            pattern = re.compile("([\w\W]+) \(([\w\W]+)\)")
+            match = pattern.findall(description)
+            match = match[0] if (len(match) > 0) else ["", ""]
+
+        return {
+            "payment_description_schedule" : match[0],
+            "payment_description_event"    : match[1]
+        }
 
     def _calculateNet(self, amount) :
         # Fees are 2.95% if over £15, or (1.95% + 15p) if under
@@ -202,7 +213,7 @@ class Reconciler :
 
     def send(self, keepExported = False) :
         if(not self._mailer) :
-            raise Exception("Mail driver not specified, or loaded incorrectly - check mail parameters")
+            raise ValueError("Mail driver not specified, or loaded incorrectly - check mail parameters")
 
         if(not self._exported) :
             self.export()
@@ -226,13 +237,3 @@ class Reconciler :
 
         if not keepExported :
             self._deleteExported()
-
-    def file(self) :
-        return self.exported["path"]
-
-    def counts(self) :
-        print("Payouts: {}\nPayments: {}\nMatched: {}".format(
-            len(self._payouts),
-            len(self._payments),
-            len(self._matched)
-        ))
