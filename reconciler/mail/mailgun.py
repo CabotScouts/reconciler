@@ -1,7 +1,7 @@
 import requests
-from reconciler.mail import Mail
+from reconciler.mail import MailDriver
 
-class Mailgun(Mail) :
+class Mailgun (MailDriver) :
 
     api      = None
     key      = None

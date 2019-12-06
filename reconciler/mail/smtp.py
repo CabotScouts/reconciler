@@ -1,6 +1,6 @@
-from reconciler.mail import Mail
+from reconciler.mail import MailDriver
 
-class SMTP(Mail) :
+class SMTP (MailDriver) :
 
     def __init__(self, parameters) :
         pass

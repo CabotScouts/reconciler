@@ -3,7 +3,7 @@ drivers = {
     "mailgun" : ("reconciler.mail.mailgun", "Mailgun")
 }
 
-class Mail :
+class MailDriver :
 
     subject     = None
     sendTo      = None
