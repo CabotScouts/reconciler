@@ -210,9 +210,13 @@ class Reconciler :
         self._fetchPayments()
         self._matchPayoutItemsWithPayments()
 
+        return self
+
     def export(self) :
         self._book.save(self._filename)
         self._exported = self._filename
+
+        return self
 
     def send(self, keepExported = False) :
         if(not self._mailer) :
@@ -246,3 +250,5 @@ class Reconciler :
 
         if not keepExported :
             self._deleteExported()
+
+        return self
