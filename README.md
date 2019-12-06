@@ -33,7 +33,7 @@ Those in bold are required.
 * *parser* - (function handle) a custom payment description parsing function (see below)
 
 ## Methods
-* `Reconciler(parameters)` - Reconciler object, takes a dict of config parameters
+* `Reconciler(parameters)` - Reconciler object, takes in keyword argument config parameters
 * `.reconcile()` - performs the reconciliation
 * `.export()` - exports the reconciliated payments into an xlsx file
 * `.send()` - sends out an exported xlsx via email
