@@ -5,14 +5,6 @@ if __name__ == "__main__" :
         gc    = {
             "token" : ""
         },
-        mail  = {
-            "driver" : "mailgun",
-            "api"    : "",
-            "key"    : "",
-            "domain" : "",
-            "from"   : "A Name <email@address.org.uk>",
-            "to"     : ["treasurer@address.org.uk"]
-        },
         limit = "finyear",
         file  = "payments.xlsx"
     )
