@@ -1,11 +1,9 @@
+import os
 import datetime
 import importlib
 import gocardless_pro
 from openpyxl import Workbook
 from reconciler.mail import drivers
-
-# TODO: fix correct driver being imported
-from reconciler.mail.mailgun import Mailgun
 
 class Reconciler :
 
@@ -34,9 +32,8 @@ class Reconciler :
             self._mail = args["mail"]
 
             driver = drivers[self._mail["driver"]]
-            # mailer = importlib.import_module(driver[1] , package=driver[0])
-            # self._mailer = mailer(params)
-            self._mailer = Mailgun(self._mail)
+            mailer = importlib.import_module(driver[0] , package='reconciler.mail')
+            self._mailer = getattr(mailer, driver[1])(self._mail)
 
         if ("gc" in args) :
             self._client = gocardless_pro.Client(
@@ -49,7 +46,7 @@ class Reconciler :
 
         if ("columns" in args) :
             self._columns = args["columns"]
-            self._headings = args["headers"] if ("headers" in args) else args["columns"]
+            self._headings = args["headings"] if ("headings" in args) else args["columns"]
 
         else :
             self._columns = [
@@ -191,6 +188,9 @@ class Reconciler :
 
         return round((amount - fee), 2)
 
+    def _deleteExported(self) :
+        os.remove(self._exported)
+
     def reconcile(self) :
         self._fetchPayoutItems()
         self._fetchPayments()
@@ -198,16 +198,27 @@ class Reconciler :
 
     def export(self) :
         self._book.save(self._filename)
+        self._exported = self._filename
 
     def send(self, keepExported = False) :
-        if(not self.exported) :
+        if(not self._exported) :
             self.export()
+
+        duration = {
+            "week"    : "the past week",
+            "month"   : "the past 31 days",
+            "year"    : "the past year",
+            "finyear" : "this financial year",
+            "all"     : "all time"
+        }
 
         self._mailer.subject("GoCardless Payment Reconciliation")
         self._mailer.to(self._mail["to"])
         self._mailer.sender(self._mail["from"])
-        # self._mailer.attach(self.exported)
-        self._mailer.message("Test of the reconciler")
+        self._mailer.attach(self._exported)
+        self._mailer.message(
+            "GoCardless reconciliations for {} are attached.\n\nGoCardless reconciliation powered by https://github.com/cabotexplorers/reconciler.".format(duration[self._limit])
+        )
         self._mailer.send()
 
         if not keepExported :
