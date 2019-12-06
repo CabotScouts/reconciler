@@ -36,7 +36,7 @@ class Reconciler :
             mailer = importlib.import_module(driver[0] , package='reconciler.mail')
             self._mailer = getattr(mailer, driver[1])(self._mail)
 
-        if ("gc" in args) :
+        if ("gc" in args and "token" in args["gc"]) :
             self._client = gocardless_pro.Client(
                 access_token = args["gc"]["token"],
                 environment = args["gc"]["environment"] if ("environment" in args["gc"]) else "live"
@@ -50,21 +50,7 @@ class Reconciler :
             self._headings = args["headings"] if ("headings" in args) else args["columns"]
 
         else :
-            self._columns = [
-                "payout_date",
-                "payout_reference",
-                "payment_amount_net",
-                "payment_description_schedule",
-                "payment_description_event"
-            ]
-
-            self._headings = [
-                "Payout Date",
-                "Payout Reference",
-                "Amount",
-                "Schedule",
-                "Event"
-            ]
+            self._defaultColumns()
 
         self._parser = args["parser"] if ("parser" in args) else None
 
@@ -102,10 +88,27 @@ class Reconciler :
     def _headerRow(self) :
         self._sheet.append(self._headings)
 
+    def _defaultColumns(self) :
+        self._columns = [
+            "payout_date",
+            "payout_reference",
+            "payment_amount_net",
+            "payment_description_schedule",
+            "payment_description_event"
+        ]
+
+        self._headings = [
+            "Payout Date",
+            "Payout Reference",
+            "Amount",
+            "Schedule",
+            "Event"
+        ]
+
     def _fetchPayoutItems(self, after = False) :
-        # A 'payout' is a transfer of money from GoCardless to the account
-        # Payouts consist of many payout items, some of these being the individual
-        # payments that make up the payout
+        # A 'payout' is a transfer of money from GoCardless to the account.
+        # Payouts consist of several payout items, some of these being the payments in
+        # that have come via OSM.
 
         params = {
             "status"          : "paid",
@@ -135,8 +138,8 @@ class Reconciler :
             self._fetchPayouts(payouts.after)
 
     def _fetchPayments(self, after = False) :
-        # A 'payment' is the transfer of money from a customer to GoCardless
-        # payments are bundled together along with GC and app fees to make a payout
+        # A 'payment' is the transfer of money from a customer to GoCardless.
+        # Payments are bundled together along with GoCardless/OSM fees to make a payout.
 
         params = {
             "status" : "paid_out",
