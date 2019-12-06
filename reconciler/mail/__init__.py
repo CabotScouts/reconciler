@@ -1,6 +1,6 @@
 drivers = {
     "smtp"    : ("reconciler.mail.smtp", "SMTP"),
-    "mailgun" : ("reconciler.mail", "mailgun.Mailgun")
+    "mailgun" : ("reconciler.mail.mailgun", "Mailgun")
 }
 
 class Mail :
@@ -27,8 +27,8 @@ class Mail :
         self.plainText = message
         return self
 
-    def attach(self, pathToFile) :
-        pass
+    def attach(self, filename) :
+        self.attachments.append(filename)
 
     def send(self) :
         try :
