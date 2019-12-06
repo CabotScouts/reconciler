@@ -23,7 +23,7 @@ Those in bold are required.
   * *driver specific parameters* - depend on the driver you're using - see below
 * *limit* - (string) how far back to fetch payouts, one of:
   * week
-  * month
+  * month - default
   * year
   * finyear (all payments in current financial year)
   * all (if you've been using GoCardless for a while this might break?)
@@ -51,7 +51,7 @@ Parameters:
 * **key** - (string) your secret key
 * **domain** - (string) the domain you have setup to send mail from
 
-## Customising `Reconciler` Export
+## Customising Exported Data
 ### Custom XLSX columns
 By supplying a list of column names, the exported xlsx can be customised. Custom column headers can also be supplied in the same way (just make sure the headings and custom columns lists match up!).
 
