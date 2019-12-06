@@ -201,6 +201,9 @@ class Reconciler :
         self._exported = self._filename
 
     def send(self, keepExported = False) :
+        if(not self._mailer) :
+            raise Exception("Mail driver not specified, or loaded incorrectly - check mail parameters")
+
         if(not self._exported) :
             self.export()
 
