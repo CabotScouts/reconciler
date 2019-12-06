@@ -15,7 +15,7 @@ Those in bold are required.
   * **token** - access token, must have read access
   * *environment* - environment being used (if omitted defaults to 'live')
 * *mail* - (dict) Settings for sending exported payments by mail
-  * **driver** - (string) which mail driver to use (currently only 'mailgun' works)
+  * **driver** - (string) which mail driver to use
   * **from** - (string) the address to send from, in the format `Name <email@address.org>`
   * *to* - (list) a list of email addresses to send the exported xlsx file to
   * *cc* - (list) a list of email addresses to cc the exported xlsx file to
@@ -28,12 +28,12 @@ Those in bold are required.
   * finyear (all payments in current financial year)
   * all (if you've been using GoCardless for a while this might break?)
 * *file* - (string) what to call the exported xlsx file (defaults to 'export.xlsx')
-* *columns* - (list) the payout/payment attributes to use in xlsx columns (see below)
-* *headings* - (list) column headings for the xlsx file
+* *columns* - (list) payout/payment keys to use in custom xlsx columns (see below)
+* *headings* - (list) headings for these custom columns
 * *parser* - (function handle) a custom payment description parsing function (see below)
 
 ## Methods
-* `Reconciler(parameters)` - Reconciler object, takes a dict of config parameters 
+* `Reconciler(parameters)` - Reconciler object, takes a dict of config parameters
 * `.reconcile()` - performs the reconciliation
 * `.export()` - exports the reconciliated payments into an xlsx file
 * `.send()` - sends out an exported xlsx via email
@@ -53,7 +53,7 @@ Parameters:
 
 ## Customising `Reconciler` Export
 ### Custom XLSX columns
-By supplying a list of column names, the exported xlsx can be customised. Custom headers can also be supplied in the same way (just make sure the two lists are the same length).
+By supplying a list of column names, the exported xlsx can be customised. Custom column headers can also be supplied in the same way (just make sure the headings and custom columns lists match up!).
 
 Possible values:
 
@@ -65,12 +65,14 @@ Possible values:
 * payment_amount_gross - the amount paid in
 * payment_amount_net - the amount paid out by GoCardless (with GoCardless/OSM fees taken)
 * payment_description - the payment description (a combination of the payment schedule and activity)
+* payment_description_schedule - payment schedule, parsed from the description
+* payment_description_event - payment event, parsed from the description
 * *other values returned by custom description parser*
 
 ### Custom Payment Description Parsing
-The payment description given by OSM is made up of the payment schedule, and the activity or term (in the format `<schedule> (<activity>)`). Depending on how your schedules are named, there might be additional information included (in our case the schedules also include the ESU name) - by specifying a custom parsing function and passing a handle for this using the `parser` parameter, this information can be extracted.
+The payment description given by OSM is made up of the payment schedule, and the activity or term (in the format `<schedule> (<activity>)`). Depending on how your schedules are named, there might be additional information included (in our case the schedules also include the ESU name) - by specifying a custom parser function and passing a handle for this using the `parser` parameter, this information can be extracted.
 
-The function must take a single argument (the payment description string), and return a dict - these keys can then be specified in the custom column list (above).
+The function must take a single argument (the payment description string), and return a dict - these keys can then be specified as custom columns.
 
 #### Example Custom Parser
 ```python
