@@ -21,7 +21,7 @@ class Mailgun(Mail) :
         auth = ("api", self.key)
 
         files = [
-            ("attachment", (f["name"], open(f["path"], rb).read)) for f in self.attachments
+            ("attachment", (f, open(f, 'rb'))) for f in self.attachments
         ]
 
         for addr in self.sendTo :
