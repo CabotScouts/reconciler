@@ -226,12 +226,18 @@ class Reconciler :
             "all"     : "all time"
         }
 
+        to = self._mail["to"] if ("to" in self._mail) else []
+        cc = self._mail["cc"] if ("cc" in self._mail) else []
+        bcc = self._mail["bcc"] if ("bcc" in self._mail) else []
+
         self._mailer.subject("GoCardless Payment Reconciliation")
-        self._mailer.to(self._mail["to"])
+        self._mailer.to(to)
+        self._mailer.cc(cc)
+        self._mailer.bcc(bcc)
         self._mailer.sender(self._mail["from"])
         self._mailer.attach(self._exported)
         self._mailer.message(
-            "GoCardless reconciliations for {} are attached.\n\nGoCardless reconciliation powered by https://github.com/cabotexplorers/reconciler.".format(duration[self._limit])
+            "GoCardless payments for {} are attached.\n\nGoCardless reconciliation powered by https://github.com/cabotexplorers/reconciler.".format(duration[self._limit])
         )
         self._mailer.send()
 

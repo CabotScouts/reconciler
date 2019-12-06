@@ -11,7 +11,8 @@ class Mailgun(Mail) :
         self.api      = options["api"]
         self.key      = options["key"]
         self.domain   = options["domain"]
-        self.sendFrom = options["from"]
+
+        self.sender(options["from"])
 
     def endpoint(self, endpoint) :
         url = "https://{}/{}/{}".format(self.api, self.domain, endpoint)
@@ -24,17 +25,18 @@ class Mailgun(Mail) :
             ("attachment", (f, open(f, 'rb'))) for f in self.attachments
         ]
 
-        for addr in self.sendTo :
-            data = {
-                "from"    : self.sendFrom,
-                "to"      : addr,
-                "subject" : self.subject,
-                "text"    : self.plainText
-            }
+        data = {
+            "from"    : self.sendFrom,
+            "to"      : self.sendTo,
+            "cc"      : self.sendCC,
+            "bcc"     : self.sendBCC,
+            "subject" : self.subject,
+            "text"    : self.plainText
+        }
 
-            send = requests.post(
-                self.endpoint("messages"),
-                auth=auth,
-                files=files,
-                data=data
-            )
+        send = requests.post(
+            self.endpoint("messages"),
+            auth=auth,
+            files=files,
+            data=data
+        )
