@@ -16,7 +16,7 @@ class SMTP (MailDriver) :
 
     def __init__(self, parameters) :
         self.hostname = parameters["hostname"]
-        self.port     = parameters["port"]
+        self.port     = parameters["port"] if ("port" in parameters) else 25
         self.username = parameters["username"]
         self.password = parameters["password"]
 
