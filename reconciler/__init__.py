@@ -83,7 +83,7 @@ class Reconciler :
         else :
             raise ValueError("Incorrect limit specified")
 
-        self._ldate = l.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        self._ldate = l.strftime("%Y-%m-%dT00:00:00.000") + "Z"
 
     def _headerRow(self) :
         self._sheet.append(self._headings)
