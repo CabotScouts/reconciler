@@ -15,7 +15,7 @@ class Mailgun (MailDriver) :
         self.sender(options["from"])
 
     def endpoint(self, endpoint) :
-        url = "https://{}/{}/{}".format(self.api, self.domain, endpoint)
+        url = "https://{}/v3/{}/{}".format(self.api, self.domain, endpoint)
         return url
 
     def _send(self) :
@@ -40,3 +40,7 @@ class Mailgun (MailDriver) :
             files=files,
             data=data
         )
+
+        if send.status_code != 200 :
+            error = "{}: {}".format(send.status_code, send.error) if send.error else send.status_code
+            raise HTTPError("Mailgun API Error - {}".format(error))
