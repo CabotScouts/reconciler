@@ -39,10 +39,15 @@ Those in bold are required.
 * `.send()` - sends out an exported xlsx via email
 
 ## Mail Drivers
-Currently only Mailgun is supported - will look at SMTP soon. If you use another mail API you'll need to make your own driver for this (or ask nicely and I'll have a look).
+Currently SMTP and Mailgun are supported. If you use another mail API you'll need to make your own driver for this (or ask nicely and I'll have a look).
 
 ### SMTP
-Coming soon!
+Parameters:
+* **hostname** - (string) SMTP server hostname
+* *port* - (int) SMTP server port - defaults to 25 if not specified
+* **username** - (string)
+* **password** - (string)
+* *ssl* - (boolean) whether to send with SSL or not
 
 ### Mailgun
 Parameters:
