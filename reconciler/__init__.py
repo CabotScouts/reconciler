@@ -75,7 +75,7 @@ class Reconciler :
             l = (today - datetime.timedelta(weeks=52))
 
         elif self._limit == "finyear" :
-            year = (today.year) if today.month > 4 else (today.year - 1)
+            year = (today.year) if today.month > 3 else (today.year - 1)
             l = datetime.datetime(year, 4, 1, 0, 0, 0)
 
         elif self._limit == "all" :
