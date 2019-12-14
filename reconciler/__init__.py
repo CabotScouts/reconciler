@@ -6,8 +6,6 @@ import gocardless_pro
 from openpyxl import Workbook
 from reconciler.mail import drivers
 
-from pprint import pprint
-
 class Reconciler :
 
     _mail      = None # Parameters used for sending result by mail
