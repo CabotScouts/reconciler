@@ -6,6 +6,8 @@ import gocardless_pro
 from openpyxl import Workbook
 from reconciler.mail import drivers
 
+from pprint import pprint
+
 class Reconciler :
 
     _mail      = None # Parameters used for sending result by mail
@@ -159,7 +161,8 @@ class Reconciler :
                 "payment_date"         : p.charge_date,
                 "payment_amount_gross" : round((p.amount / 100), 2),
                 "payment_amount_net"   : self._calculateNet(p.amount),
-                "payment_description"  : p.description
+                "payment_description"  : p.description,
+                "member_name"          : p.metadata["Member"]
             }
             parsed = self._parseDescription(p.description)
             self._payments.append({ **payout, **parsed })
