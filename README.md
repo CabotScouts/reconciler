@@ -25,7 +25,8 @@ Those in bold are required.
   * week
   * month - default
   * year
-  * finyear (all payments in current financial year)
+  * finyear (all payments in the current financial year)
+  * calyear (all payments in the current calendar year)
   * all (if you've been using GoCardless for a while this might break?)
 * *file* - (string) what to call the exported xlsx file (defaults to 'export.xlsx')
 * *columns* - (list) payout/payment keys to use in custom xlsx columns (see below)
@@ -52,7 +53,7 @@ Parameters:
 ### Mailgun
 Parameters:
 
-* **api** - (string) api endpoint (will probably be the EU address)
+* **api** - (string) api endpoint
 * **key** - (string) your secret key
 * **domain** - (string) the domain you have setup to send mail from
 
