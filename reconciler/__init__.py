@@ -233,6 +233,7 @@ class Reconciler :
             "week"    : "the past week",
             "month"   : "the past 31 days",
             "year"    : "the past year",
+            "calyear" : "this calendar year",
             "finyear" : "this financial year",
             "all"     : "all time"
         }
