@@ -200,7 +200,6 @@ class Reconciler:
 
     def _calculateFees(self, amount):
         # Fractions of pence should be rounded to whole pence (not using Banker's Rounding!)
-
         amount = decimal.Decimal(amount)  # Amount in whole pence
 
         gc = (max(decimal.Decimal(15.0), decimal.Decimal(0.01) * amount)).quantize(
