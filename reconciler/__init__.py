@@ -8,6 +8,12 @@ import gocardless_pro
 from openpyxl import Workbook
 
 from reconciler.mail import drivers
+from reconciler.mail import ReconcilerMailerError
+
+
+class ReconcilerParameterError(Exception):
+    # A parameter is missing, or being used incorrectly
+    pass
 
 
 class Reconciler:
@@ -39,26 +45,29 @@ class Reconciler:
             )
 
         else:
-            raise ValueError("GoCardless token missing - check parameters")
+            raise ReconcilerParameterError("GoCardless token is missing")
 
         if "mail" in args:
             if "driver" in args["mail"]:
                 self._mail = args["mail"]
+                driver = args["mail"]["driver"]
 
-                # TODO: checks & exception handling around this loading
-                driver = drivers[args["mail"]["driver"]]
-                mailer = importlib.import_module(driver[0], package="reconciler.mail")
-                self._mailer = getattr(mailer, driver[1])(self._mail)
+                if driver not in drivers:
+                    raise ReconcilerParameterError(f"Mail driver ({driver}) is invalid")
+
+                (module, object) = drivers[driver]
+                mailer = importlib.import_module(module, package="reconciler.mail")
+                self._mailer = getattr(mailer, object)(self._mail)
 
             else:
-                raise ValueError("Mail driver not specified")
+                raise ReconcilerParameterError("Mail driver not specified")
 
         if "columns" in args:
             self._columns = args["columns"]
             self._headings = args.get("headings", args["columns"])
 
             if len(self._columns) != len(self._headings):
-                raise ValueError(
+                raise ReconcilerParameterError(
                     "Mismatch between number of columns and number of column headings"
                 )
 
