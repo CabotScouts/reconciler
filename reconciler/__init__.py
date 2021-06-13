@@ -246,8 +246,8 @@ class Reconciler:
 
     def send(self, keepExported=False):
         if not self._mailer:
-            raise ValueError(
-                "Mail driver not specified, or loaded incorrectly - check mail parameters"
+            raise ReconcilerMailerError(
+                "Mail driver not specified, or loaded incorrectly"
             )
 
         if not self._exported:

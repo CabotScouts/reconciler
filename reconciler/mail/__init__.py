@@ -1,56 +1,65 @@
 drivers = {
-    "smtp"    : ("reconciler.mail.smtp", "SMTP"),
-    "mailgun" : ("reconciler.mail.mailgun", "Mailgun")
+    "smtp": ("reconciler.mail.smtp", "SMTP"),
+    "mailgun": ("reconciler.mail.mailgun", "Mailgun"),
 }
 
-class MailDriver :
 
-    subject     = None
-    sendTo      = None
-    sendCC      = None
-    sendBCC     = None
-    sendFrom    = None
+class ReconcilerMailerError(Exception):
+    # Something is wrong with the mailer
+    pass
+
+
+class MailDriver:
+
+    subject = None
+    sendTo = None
+    sendCC = None
+    sendBCC = None
+    sendFrom = None
     attachments = []
-    plainText   = None
+    plainText = None
 
-    def subject(self, subject) :
+    def subject(self, subject):
         self.subject = subject
         return self
 
-    def to(self, to) :
+    def to(self, to):
         self.sendTo = to
         return self
 
-    def cc(self, cc) :
+    def cc(self, cc):
         self.sendCC = cc
         return self
 
-    def bcc(self, bcc) :
+    def bcc(self, bcc):
         self.sendBCC = bcc
         return self
 
-    def sender(self, sender) :
+    def sender(self, sender):
         self.sendFrom = sender
         return self
 
-    def message(self, message) :
+    def message(self, message):
         self.plainText = message
         return self
 
-    def attach(self, filename) :
+    def attach(self, filename):
         self.attachments.append(filename)
 
-    def send(self) :
-        try :
-            assert(isinstance(self.subject, str))
-            assert(isinstance(self.sendFrom, str))
-            assert(isinstance(self.plainText, str))
+    def send(self):
+        if (
+            not isinstance(self.subject, str)
+            or not isinstance(self.sendFrom, str)
+            or not isinstance(self.plainText, str)
+        ):
+            raise ReconcilerMailerError(
+                "A required email field is either blank or the wrong type"
+            )
 
-        except :
-            raise ValueError("A required email field is either blank or the wrong type")
-
-        if not (self.sendTo or self.sendCC or self.sendBCC) :
-            raise ValueError("Some form of email recipient must be specified (either to, cc, or bcc)")
+        if not (self.sendTo or self.sendCC or self.sendBCC):
+            raise ReconcilerMailerError(
+                "Some form of email recipient must be specified (either to, cc, or bcc)"
+            )
 
         self._send()
         return self
