@@ -33,7 +33,7 @@ Those in bold are required.
 * *headings* - (list) headings for these custom columns
 * *parser* - (function handle) a custom payment description parsing function (see below)
 
-### Fee Calculations
+## Fee Calculations
 Fees charged by GoCardless and OSM are manually calculated by the reconciler, as they cannot be obtained through the GoCardless API - the breakdown of how these are calculated is below.
 
 From 1st September 2020 GoCardless began charging VAT on their portion of the fees, currently the reconciler calculates all fees using the updated costings so if fetching payouts from before then the net amount/calculated fees will be incorrect.
