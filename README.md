@@ -1,7 +1,7 @@
 # Reconciler
-Util for reconciling GoCardless payments and payouts, and exporting these
+Package for reconciling GoCardless payments and payouts and exporting to xlsx.
 
-Will match a *payout* to your bank account, with the *payments* that it consists of (so these can then be properly reconciled).
+Will match a *payout* to a bank account, with the *payments* that it consists of (so these can then be properly reconciled).
 
 ## Required packages
 * **gocardless_pro** - GoCardless API
