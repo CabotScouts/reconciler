@@ -117,7 +117,7 @@ class Reconciler:
         ]
 
     def _fetchPayouts(self, after=False):
-        # A 'payout' is a transfer of money from GoCardless to a bank account.
+        # A payout is a transfer of money from GoCardless to a bank account
         # https://developer.gocardless.com/api-reference/#core-endpoints-payouts
 
         params = {"status": "paid", "created_at[gte]": self._ldate, "limit": 500}
@@ -144,13 +144,13 @@ class Reconciler:
             self._fetchPayouts(payouts.after)
 
     def _fetchPayoutEvents(self):
-        # Each payout has a payout_event associated with it, created when the payout is actually paid
+        # Each payout has an event associated with it, created when the payout is actually paid out
         # https://developer.gocardless.com/api-reference/#core-endpoints-events
         for payout in self._payouts:
             self._fetchChildEvents(self._payouts[payout]["payout_event"])
 
     def _fetchChildEvents(self, parent, after=False):
-        # Each child event represents one of the payments making up the payout coming in
+        # Each child event represents one of the payments making up the payout being received by GoCardless
         # https://developer.gocardless.com/api-reference/#events-reconciling-payouts-with-events
         params = {
             "resource_type": "payments",
@@ -162,11 +162,9 @@ class Reconciler:
             params["after"] = after
 
         events = self._client.events.list(params=params)
-        records = events.records
 
-        for record in records:
+        for record in events.records:
             payment = self._client.payments.get(record.links.payment)
-
             fees = self._calculateFees(payment.amount)
 
             data = {
@@ -191,19 +189,20 @@ class Reconciler:
             self._fetchChildEvents(parent, events.after)
 
     def _calculateFees(self, amount):
+        # Fractions of pence should be rounded to whole pence (not using Banker's Rounding!)
         amount = decimal.Decimal(amount)  # Amount in whole pence
 
         gc = (max(decimal.Decimal(15.0), decimal.Decimal(0.01) * amount)).quantize(
-            decimal.Decimal(1), rounding=decimal.ROUND_HALF_UP
-        )  # 1% of amount, or 15p, whichever's higher
+            1, rounding=decimal.ROUND_HALF_UP
+        )  # 1% of amount, or 15p, whichever's largest - rounded to whole pence
 
         gc_vat = (gc * decimal.Decimal(0.2)).quantize(
-            decimal.Decimal(1), rounding=decimal.ROUND_HALF_UP
-        )  # 20% VAT on GC fees - quantized to whole pence
+            1, rounding=decimal.ROUND_HALF_UP
+        )  # 20% VAT on GC fees - rounded to whole pence
 
         osm = (decimal.Decimal(0.0195) * amount).quantize(
-            decimal.Decimal(1), rounding=decimal.ROUND_HALF_UP
-        )  # 1.95% of amount - quantized to whole pence
+            1, rounding=decimal.ROUND_HALF_UP
+        )  # 1.95% of amount - rounded to whole pence
 
         return int(gc + gc_vat + osm)
 
