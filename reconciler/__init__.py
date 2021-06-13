@@ -2,6 +2,7 @@ import os
 import re
 import datetime
 import importlib
+import decimal
 
 import gocardless_pro
 from openpyxl import Workbook
@@ -20,7 +21,7 @@ class Reconciler:
     _limit = None  # How are we limiting getting results from GC
     _ldate = None  # Date to limit by
 
-    _payouts = {}  # Returned list of payout items
+    _payouts = {}  # Returned dict of payout items (keyed by payment ID)
     _payments = []  # Returned list of payments
     _matched = []  # Payouts matched to payments
 
@@ -115,10 +116,9 @@ class Reconciler:
             "Event",
         ]
 
-    def _fetchPayoutItems(self, after=False):
-        # A 'payout' is a transfer of money from GoCardless to the account.
-        # Payouts consist of several payout items, some of these being the payments in
-        # that have come via OSM.
+    def _fetchPayouts(self, after=False):
+        # A 'payout' is a transfer of money from GoCardless to a bank account.
+        # https://developer.gocardless.com/api-reference/#core-endpoints-payouts
 
         params = {"status": "paid", "created_at[gte]": self._ldate, "limit": 500}
 
@@ -127,60 +127,85 @@ class Reconciler:
 
         payouts = self._client.payouts.list(params=params)
 
-        for p in payouts.records:
-            items = self._client.payout_items.list(params={"payout": p.id}).records
+        for payout in payouts.records:
+            event = (
+                self._client.events.list({"action": "paid", "payout": payout.id})
+                .records[0]
+                .id
+            )
 
-            for i in items:
-                if i.type == "payment_paid_out":
-                    self._payouts[p.id] = {
-                        "payout_date": p.arrival_date,
-                        "payout_reference": p.reference,
-                        "payment_id": i.links.payment,
-                    }
+            self._payouts[payout.id] = {
+                "payout_date": payout.arrival_date,
+                "payout_reference": payout.reference,
+                "payout_event": event,
+            }
 
         if payouts.after:
             self._fetchPayouts(payouts.after)
 
-    def _fetchPayments(self, after=False):
-        # A 'payment' is the transfer of money from a customer to GoCardless.
-        # Payments are bundled together along with GoCardless/OSM fees to make a payout.
+    def _fetchPayoutEvents(self):
+        # Each payout has a payout_event associated with it, created when the payout is actually paid
+        # https://developer.gocardless.com/api-reference/#core-endpoints-events
+        for payout in self._payouts:
+            self._fetchChildEvents(self._payouts[payout]["payout_event"])
 
-        params = {"status": "paid_out", "created_at[gte]": self._ldate, "limit": 500}
+    def _fetchChildEvents(self, parent, after=False):
+        # Each child event represents one of the payments making up the payout coming in
+        # https://developer.gocardless.com/api-reference/#events-reconciling-payouts-with-events
+        params = {
+            "resource_type": "payments",
+            "include": "payment",
+            "parent_event": parent,
+        }
 
         if after:
             params["after"] = after
 
-        payments = self._client.payments.list(params=params)
+        events = self._client.events.list(params=params)
+        records = events.records
 
-        for p in payments.records:
-            fees = self._calculateNet(p.amount)
+        for record in records:
+            payment = self._client.payments.get(record.links.payment)
 
-            payout = {
-                "payout_id": p.links.payout,
-                "payment_id": p.id,
-                "payment_date": p.charge_date,
-                "payment_amount_gross": round((p.amount / 100), 2),
-                "payment_amount_net": self._calculateNet(p.amount),
-                "payment_description": p.description,
-                "member_name": p.metadata["Member"],
+            fees = self._calculateFees(payment.amount)
+
+            data = {
+                "payout_id": payment.links.payout,
+                "payment_id": payment.id,
+                "payment_date": payment.charge_date,
+                "payment_description": payment.description,
+                "payment_amount_gross": round(payment.amount / 100, 2),
+                "payment_amount_net": round((payment.amount - fees) / 100, 2),
+                "payment_amount_fees": round(fees / 100, 2),
+                "member_name": payment.metadata["Member"],
             }
-            parsed = self._parseDescription(p.description)
-            self._payments.append({**payout, **parsed})
+            parsed = self._parseDescription(payment.description)
+            payout = self._payouts[payment.links.payout]
 
-        if payments.after:
-            self._fetchPayments(payments.after)
+            matched = {**data, **parsed, **payout}
 
-    def _matchPayoutItemsWithPayments(self):
-        for p in self._payments:
-            try:
-                payout = self._payouts[p["payout_id"]]
-                r = {**p, **payout}
+            self._matched.append(matched)
+            self._sheet.append([matched.get(k, "") for k in self._columns])
 
-                self._matched.append(r)
-                self._sheet.append([r[k] for k in self._columns])
+        if events.after:
+            self._fetchChildEvents(parent, events.after)
 
-            except (KeyError):
-                raise Exception("Missing Payment!")  # This shouldn't happen!
+    def _calculateFees(self, amount):
+        amount = decimal.Decimal(amount)  # Amount in whole pence
+
+        gc = (max(decimal.Decimal(15.0), decimal.Decimal(0.01) * amount)).quantize(
+            decimal.Decimal(1), rounding=decimal.ROUND_HALF_UP
+        )  # 1% of amount, or 15p, whichever's higher
+
+        gc_vat = (gc * decimal.Decimal(0.2)).quantize(
+            decimal.Decimal(1), rounding=decimal.ROUND_HALF_UP
+        )  # 20% VAT on GC fees - quantized to whole pence
+
+        osm = (decimal.Decimal(0.0195) * amount).quantize(
+            decimal.Decimal(1), rounding=decimal.ROUND_HALF_UP
+        )  # 1.95% of amount - quantized to whole pence
+
+        return int(gc + gc_vat + osm)
 
     def _parseDescription(self, description):
         if self._parser:
@@ -195,23 +220,9 @@ class Reconciler:
             "payment_description_event": match[1],
         }
 
-    def _calculateNet(self, amount):
-        # Fees are 2.95% if over £15, or (1.95% + 15p) if under
-        amount = amount / 100
-        if amount < 15:
-            fee = (0.0195 * amount) + 0.15
-        else:
-            fee = 0.0295 * amount
-
-        return round((amount - fee), 2)
-
-    def _deleteExported(self):
-        os.remove(self._exported)
-
     def reconcile(self):
-        self._fetchPayoutItems()
-        self._fetchPayments()
-        self._matchPayoutItemsWithPayments()
+        self._fetchPayouts()
+        self._fetchPayoutEvents()
 
         return self
 
@@ -257,6 +268,6 @@ class Reconciler:
         self._mailer.send()
 
         if not keepExported:
-            self._deleteExported()
+            os.remove(self._exported)
 
         return self

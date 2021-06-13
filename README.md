@@ -70,6 +70,7 @@ Possible values:
 * payment_date - when the payment was received by GoCardless
 * payment_amount_gross - the amount paid in
 * payment_amount_net - the amount paid out by GoCardless (with GoCardless/OSM fees taken)
+* payment_amount_fees - the fees charged on the payment by GoCardless and OSM
 * payment_description - the payment description (a combination of the payment schedule and activity)
 * payment_description_schedule - payment schedule, parsed from the description
 * payment_description_event - payment event, parsed from the description
