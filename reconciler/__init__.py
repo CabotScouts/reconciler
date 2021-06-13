@@ -21,9 +21,8 @@ class Reconciler:
     _limit = None  # How are we limiting getting results from GC
     _ldate = None  # Date to limit by
 
-    _payouts = {}  # Returned dict of payout items (keyed by payment ID)
-    _payments = []  # Returned list of payments
-    _matched = []  # Payouts matched to payments
+    _payouts = {}  # Returned dict of payout items (keyed by payout ID)
+    _payments = []  # Matched up list of payments
 
     _filename = None  # File to export payments to
     _exported = None  # Exported xlsx file of matches
@@ -33,46 +32,51 @@ class Reconciler:
     _parser = None  # Custom payment description parser
 
     def __init__(self, **args):
-        if "mail" in args:
-            self._mail = args["mail"]
-
-            driver = drivers[self._mail["driver"]]
-            mailer = importlib.import_module(driver[0], package="reconciler.mail")
-            self._mailer = getattr(mailer, driver[1])(self._mail)
-
         if "gc" in args and "token" in args["gc"]:
             self._client = gocardless_pro.Client(
                 access_token=args["gc"]["token"],
-                environment=args["gc"]["environment"]
-                if ("environment" in args["gc"])
-                else "live",
+                environment=args["gc"].get("environment", "live"),
             )
 
         else:
             raise ValueError("GoCardless token missing - check parameters")
 
+        if "mail" in args:
+            if "driver" in args["mail"]:
+                self._mail = args["mail"]
+
+                # TODO: checks & exception handling around this loading
+                driver = drivers[args["mail"]["driver"]]
+                mailer = importlib.import_module(driver[0], package="reconciler.mail")
+                self._mailer = getattr(mailer, driver[1])(self._mail)
+
+            else:
+                raise ValueError("Mail driver not specified")
+
         if "columns" in args:
             self._columns = args["columns"]
-            self._headings = (
-                args["headings"] if ("headings" in args) else args["columns"]
-            )
+            self._headings = args.get("headings", args["columns"])
+
+            if len(self._columns) != len(self._headings):
+                raise ValueError(
+                    "Mismatch between number of columns and number of column headings"
+                )
 
         else:
             self._defaultColumns()
 
-        self._parser = args["parser"] if ("parser" in args) else None
-
-        self._filename = args["file"] if ("file" in args) else "export.xlsx"
+        self._parser = args.get("parser", None)
+        self._filename = args.get("file", f"gocardless_{datetime.datetime.now()}.xlsx")
         self._book = Workbook(write_only=True)
         self._sheet = self._book.create_sheet()
         self._headerRow()
-
-        self._limit = args["limit"] if ("limit" in args) else "month"
+        self._limit = args.get("limit", "month")
         self._calculateDateLimit()
 
     def _calculateDateLimit(self):
         today = datetime.datetime.today()
 
+        # TODO: replace this with a match statement once 3.10 is more common
         if self._limit == "week":
             l = today - datetime.timedelta(weeks=1)
 
@@ -92,7 +96,7 @@ class Reconciler:
         elif self._limit == "all":
             l = datetime.datetime(1970, 1, 1, 0, 0, 0)
         else:
-            raise ValueError("Incorrect limit specified")
+            raise ValueError("Incorrect limit specified for fetching payments")
 
         self._ldate = l.strftime("%Y-%m-%dT00:00:00.000") + "Z"
 
@@ -119,7 +123,6 @@ class Reconciler:
     def _fetchPayouts(self, after=False):
         # A payout is a transfer of money from GoCardless to a bank account
         # https://developer.gocardless.com/api-reference/#core-endpoints-payouts
-
         params = {"status": "paid", "created_at[gte]": self._ldate, "limit": 500}
 
         if after:
@@ -182,7 +185,7 @@ class Reconciler:
 
             matched = {**data, **parsed, **payout}
 
-            self._matched.append(matched)
+            self._payments.append(matched)
             self._sheet.append([matched.get(k, "") for k in self._columns])
 
         if events.after:
@@ -190,6 +193,7 @@ class Reconciler:
 
     def _calculateFees(self, amount):
         # Fractions of pence should be rounded to whole pence (not using Banker's Rounding!)
+
         amount = decimal.Decimal(amount)  # Amount in whole pence
 
         gc = (max(decimal.Decimal(15.0), decimal.Decimal(0.01) * amount)).quantize(
