@@ -27,11 +27,12 @@ Those in bold are required.
   * year
   * finyear (all payments in the current financial year)
   * calyear (all payments in the current calendar year)
-  * all (this does work but can be a bit slow if you've been using GoCardless for a while, also note the fee calculation info below)
-* *file* - (string) what to call the exported xlsx file (defaults to 'export.xlsx')
+  * all (this does work but can be a bit slow if you've been using GoCardless for a while)
+* *file* - (string) what to call the exported xlsx file (defaults to 'gocardless_<date>.xlsx')
 * *columns* - (list) payout/payment keys to use in custom xlsx columns (see below)
 * *headings* - (list) headings for these custom columns
 * *parser* - (function handle) a custom payment description parsing function (see below)
+* *vat* - (boolean) whether VAT should be charged on the GC fee after 01/09/2020 (default True)
 
 ## Fee Calculations
 Fees charged by GoCardless and OSM are manually calculated by the reconciler, as they cannot be obtained through the GoCardless API.
@@ -40,7 +41,6 @@ Fees charged by GoCardless and OSM are manually calculated by the reconciler, as
 * GoCardless fee VAT - 20% VAT on the above GoCardless fee, minimum 3p (from 01/09/2020)
 * OSM fee - 1.95% of the charged amount
 
-From 1st September 2020 GoCardless began charging VAT on their portion of the fees; currently the reconciler calculates all fees using the updated costings so if fetching payouts from before then the net amount/calculated fees will be incorrect.
 
 ## Methods
 * `Reconciler(parameters)` - Reconciler object, takes in keyword argument config parameters

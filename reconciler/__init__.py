@@ -21,6 +21,7 @@ class Reconciler:
 
     _limit = None  # How are we limiting getting results from GC
     _ldate = None  # Date to limit by
+    _vat = None  # Is VAT charged on GC fee
 
     _payouts = {}  # Returned dict of payout items (keyed by payout ID)
     _payments = []  # Matched up list of payments
@@ -76,6 +77,7 @@ class Reconciler:
         self._headerRow()
         self._limit = args.get("limit", "month")
         self._calculateDateLimit()
+        self._vat = args.get("vat", True)
 
     def _calculateDateLimit(self):
         today = datetime.datetime.today()
@@ -175,7 +177,9 @@ class Reconciler:
 
         for record in events.records:
             payment = self._client.payments.get(record.links.payment)
-            fees = self._calculateFees(payment.amount)
+
+            chargeVAT = self._VATOnGoCardlessFee(payment.charge_date)
+            fees = self._calculateFees(payment.amount, chargeVAT)
 
             data = {
                 "payout_id": payment.links.payout,
@@ -185,6 +189,7 @@ class Reconciler:
                 "payment_amount_gross": round(payment.amount / 100, 2),
                 "payment_amount_net": round((payment.amount - fees) / 100, 2),
                 "payment_amount_fees": round(fees / 100, 2),
+                "payment_amount_fees_vat": chargeVAT,
                 "member_name": payment.metadata["Member"],
             }
             parsed = self._parseDescription(payment.description)
@@ -198,17 +203,30 @@ class Reconciler:
         if events.after:
             self._fetchChildEvents(parent, events.after)
 
-    def _calculateFees(self, amount):
-        # Fractions of pence should be rounded to whole pence (not using Banker's Rounding!)
-        amount = decimal.Decimal(amount)  # Amount in whole pence
+    def _VATOnGoCardlessFee(self, chargeDate):
+        if not self._vat:
+            return False
+
+        date = datetime.date.fromisoformat(chargeDate)
+        change = datetime.date(2020, 9, 1)
+        return date >= change
+
+    def _calculateFees(self, amount, withVAT=True):
+        # Input amount in whole pence (then cast to decimal)
+        # When calculating, fractions of pence should be rounded to whole pence (not using Banker's Rounding!)
+        amount = decimal.Decimal(amount)
 
         gc = (max(decimal.Decimal(15.0), decimal.Decimal(0.01) * amount)).quantize(
             1, rounding=decimal.ROUND_HALF_UP
         )  # 1% of amount, or 15p, whichever's largest - rounded to whole pence
 
-        gc_vat = (gc * decimal.Decimal(0.2)).quantize(
-            1, rounding=decimal.ROUND_HALF_UP
-        )  # 20% VAT on GC fees - rounded to whole pence
+        if withVAT:
+            gc_vat = (gc * decimal.Decimal(0.2)).quantize(
+                1, rounding=decimal.ROUND_HALF_UP
+            )  # 20% VAT on GC fees - rounded to whole pence
+
+        else:
+            gc_vat = 0
 
         osm = (decimal.Decimal(0.0195) * amount).quantize(
             1, rounding=decimal.ROUND_HALF_UP
