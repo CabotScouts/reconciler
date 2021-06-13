@@ -104,8 +104,11 @@ class Reconciler:
 
         elif self._limit == "all":
             l = datetime.datetime(1970, 1, 1, 0, 0, 0)
+
         else:
-            raise ValueError("Incorrect limit specified for fetching payments")
+            raise ReconcilerParameterError(
+                "Incorrect limit specified for fetching payments"
+            )
 
         self._ldate = l.strftime("%Y-%m-%dT00:00:00.000") + "Z"
 
