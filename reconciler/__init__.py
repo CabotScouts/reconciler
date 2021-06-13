@@ -4,7 +4,7 @@ import datetime
 import importlib
 import decimal
 
-import gocardless_pro
+from gocardless_pro import Client
 from openpyxl import Workbook
 
 from reconciler.mail import drivers
@@ -34,7 +34,7 @@ class Reconciler:
 
     def __init__(self, **args):
         if "gc" in args and "token" in args["gc"]:
-            self._client = gocardless_pro.Client(
+            self._client = Client(
                 access_token=args["gc"]["token"],
                 environment=args["gc"].get("environment", "live"),
             )
