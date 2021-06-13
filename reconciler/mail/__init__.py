@@ -1,12 +1,9 @@
+from reconciler.errors import ReconcilerMailerError
+
 drivers = {
     "smtp": ("reconciler.mail.smtp", "SMTP"),
     "mailgun": ("reconciler.mail.mailgun", "Mailgun"),
 }
-
-
-class ReconcilerMailerError(Exception):
-    # Something is wrong with the mailer
-    pass
 
 
 class MailDriver:

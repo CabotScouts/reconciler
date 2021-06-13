@@ -8,12 +8,7 @@ import gocardless_pro
 from openpyxl import Workbook
 
 from reconciler.mail import drivers
-from reconciler.mail import ReconcilerMailerError
-
-
-class ReconcilerParameterError(Exception):
-    # A parameter is missing, or being used incorrectly
-    pass
+from reconciler.errors import ReconcilerParameterError, ReconcilerMailerError
 
 
 class Reconciler:
