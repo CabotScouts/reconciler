@@ -34,13 +34,13 @@ Those in bold are required.
 * *parser* - (function handle) a custom payment description parsing function (see below)
 
 ## Fee Calculations
-Fees charged by GoCardless and OSM are manually calculated by the reconciler, as they cannot be obtained through the GoCardless API - the breakdown of how these are calculated is below.
-
-From 1st September 2020 GoCardless began charging VAT on their portion of the fees; currently the reconciler calculates all fees using the updated costings so if fetching payouts from before then the net amount/calculated fees will be incorrect.
+Fees charged by GoCardless and OSM are manually calculated by the reconciler, as they cannot be obtained through the GoCardless API.
 
 * GoCardless fee - 1% of the charged amount, minimum 15p
 * GoCardless fee VAT - 20% VAT on the above GoCardless fee, minimum 3p (from 01/09/2020)
 * OSM fee - 1.95% of the charged amount
+
+From 1st September 2020 GoCardless began charging VAT on their portion of the fees; currently the reconciler calculates all fees using the updated costings so if fetching payouts from before then the net amount/calculated fees will be incorrect.
 
 ## Methods
 * `Reconciler(parameters)` - Reconciler object, takes in keyword argument config parameters
