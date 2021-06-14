@@ -129,7 +129,7 @@ class Reconciler:
             "Event",
         ]
 
-    def _fetchPayouts(self, after=False):
+    def _fetchPayoutEvents(self, after=False):
         # A payout is a transfer of money from GoCardless to a bank account
         # https://developer.gocardless.com/api-reference/#core-endpoints-payouts
         params = {"status": "paid", "created_at[gte]": self._ldate, "limit": 500}
@@ -155,7 +155,7 @@ class Reconciler:
         if payouts.after:
             self._fetchPayouts(payouts.after)
 
-    def _fetchPayoutEvents(self):
+    def _processPayoutEvents(self):
         # Each payout has an event associated with it, created when the payout is actually paid out
         # https://developer.gocardless.com/api-reference/#core-endpoints-events
         for payout in self._payouts:
@@ -248,8 +248,8 @@ class Reconciler:
         }
 
     def reconcile(self):
-        self._fetchPayouts()
         self._fetchPayoutEvents()
+        self._processPayoutEvents()
 
         return self
 
