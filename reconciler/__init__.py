@@ -13,27 +13,29 @@ from reconciler.errors import ReconcilerParameterError, ReconcilerMailerError
 
 class Reconciler:
 
-    _mail = None  # Parameters used for sending result by mail
-    _mailer = None  # Mail driver class
     _client = None  # GoCardless client
-    _book = None  # Output xlsx wookbook
-    _sheet = None  # Output xlsx worksheet
-
     _limit = None  # How are we limiting getting results from GC
     _ldate = None  # Date to limit by
     _vat = None  # Is VAT charged on GC fee
+    _parser = None  # Custom payment description parser
 
-    _payouts = {}  # Returned dict of payout items (keyed by payout ID)
-    _payments = []  # Matched up list of payments
+    _payouts = None  # Returned dict of payout items (keyed by payout ID)
+    _payments = None  # Matched up list of payments
 
+    _mail = None  # Parameters used for sending result by mail
+    _mailer = None  # Mail driver class
+
+    _book = None  # Output xlsx wookbook
+    _sheet = None  # Output xlsx worksheet
+    _columns = None  # Keys for custom xlsx columns
+    _headings = None  # Custom xlsx headings
     _filename = None  # File to export payments to
     _exported = None  # Exported xlsx file of matches
 
-    _columns = None  # Keys for custom xlsx columns
-    _headings = None  # Custom xlsx headings
-    _parser = None  # Custom payment description parser
-
     def __init__(self, **args):
+        self._payouts = {}
+        self._payments = []
+
         if "gc" in args and "token" in args["gc"]:
             self._client = Client(
                 access_token=args["gc"]["token"],
